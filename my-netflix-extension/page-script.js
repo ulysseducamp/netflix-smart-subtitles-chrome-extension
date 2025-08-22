@@ -120,12 +120,12 @@
     });
   }
 
-  // Function to convert WebVTT text to SRT-compatible format
-  function vttTextToSimple(text, netflixRTLFix = true) {
-    let simpleText = text;
+  // Function to convert WebVTT text to plain text plus "simple" tags (allowed in SRT)
+  const TAG_REGEX = RegExp('</?([^>]*)>', 'ig');
+  function vttTextToSimple(s, netflixRTLFix = true) {
+    let simpleText = s;
 
     // Strip tags except simple ones (i, u, b)
-    const TAG_REGEX = RegExp('</?([^>]*)>', 'ig');
     simpleText = simpleText.replace(TAG_REGEX, function (match, p1) {
       return ['i', 'u', 'b'].includes(p1.toLowerCase()) ? match : '';
     });
@@ -150,56 +150,62 @@
   }
 
   // Function to format time for SRT format
-  function formatTime(seconds) {
-    const date = new Date(0, 0, 0, 0, 0, 0, seconds * 1000);
+  function formatTime(t) {
+    const date = new Date(0, 0, 0, 0, 0, 0, t * 1000);
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
-    const secs = date.getSeconds().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
     const ms = date.getMilliseconds().toString().padStart(3, '0');
-    return hours + ':' + minutes + ':' + secs + ',' + ms;
+    return hours + ':' + minutes + ':' + seconds + ',' + ms;
   }
 
-  // Function to convert WebVTT to SRT format
-  function convertWebVTTToSRT(webvttText) {
-    const lines = webvttText.split('\n');
-    const srtChunks = [];
-    let currentIndex = 1;
-    let currentTime = '';
-    let currentText = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+  // Function to convert WebVTT to SRT using browser's TextTrack API (Subadub approach)
+  function convertWebVTTToSRTUsingTextTrack(webvttBlob) {
+    return new Promise((resolve, reject) => {
+      // Create a temporary video element to use TextTrack API
+      const tempVideo = document.createElement('video');
+      const tempTrack = document.createElement('track');
       
-      if (line === '') {
-        if (currentTime && currentText.length > 0) {
-          srtChunks.push(
-            currentIndex + '\n' +
-            currentTime + '\n' +
-            currentText.join('\n') + '\n\n'
-          );
-          currentIndex++;
-          currentTime = '';
-          currentText = [];
+      tempTrack.kind = 'subtitles';
+      tempTrack.default = true;
+      tempVideo.appendChild(tempTrack);
+      
+      // Create object URL for the WebVTT blob
+      const trackUrl = URL.createObjectURL(webvttBlob);
+      tempTrack.src = trackUrl;
+      
+      tempTrack.addEventListener('load', function() {
+        try {
+          const srtChunks = [];
+          let idx = 1;
+          
+          // Use the browser's parsed cues (positioning info automatically filtered)
+          for (const cue of tempTrack.track.cues) {
+            const cleanedText = vttTextToSimple(cue.text, true);
+            srtChunks.push(idx + '\n' + formatTime(cue.startTime) + ' --> ' + formatTime(cue.endTime) + '\n' + cleanedText + '\n\n');
+            idx++;
+          }
+          
+          // Clean up
+          URL.revokeObjectURL(trackUrl);
+          tempVideo.remove();
+          
+          resolve(srtChunks.join(''));
+        } catch (error) {
+          // Clean up on error
+          URL.revokeObjectURL(trackUrl);
+          tempVideo.remove();
+          reject(error);
         }
-      } else if (line.includes('-->')) {
-        // Time line
-        currentTime = line.replace(' --> ', ' --> ');
-      } else if (currentTime && !line.match(/^\d+$/)) {
-        // Text line (not a number)
-        currentText.push(vttTextToSimple(line, true));
-      }
-    }
-
-    // Handle last subtitle if exists
-    if (currentTime && currentText.length > 0) {
-      srtChunks.push(
-        currentIndex + '\n' +
-        currentTime + '\n' +
-        currentText.join('\n') + '\n\n'
-      );
-    }
-
-    return srtChunks.join('');
+      }, false);
+      
+      tempTrack.addEventListener('error', function() {
+        // Clean up on error
+        URL.revokeObjectURL(trackUrl);
+        tempVideo.remove();
+        reject(new Error('Failed to load WebVTT track'));
+      }, false);
+    });
   }
 
   // Function to download subtitle file
@@ -242,8 +248,9 @@
     }
 
     const webvttBlob = webvttCache.get(cacheKey);
-    const webvttText = await webvttBlob.text();
-    const srtContent = convertWebVTTToSRT(webvttText);
+    
+    // Use the new TextTrack-based conversion (Subadub approach)
+    const srtContent = await convertWebVTTToSRTUsingTextTrack(webvttBlob);
 
     // Generate filename
     let filename = 'netflix_subtitle';

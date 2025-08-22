@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Netflix Subtitle Downloader",
+  "description": "Download subtitles from Netflix episodes and movies",
+  "version": "1.0.0",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://www.netflix.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Netflix Subtitle Downloader"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.netflix.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["page-script.js"],
+      "matches": ["*://www.netflix.com/*"]
+    }
+  ]
+}

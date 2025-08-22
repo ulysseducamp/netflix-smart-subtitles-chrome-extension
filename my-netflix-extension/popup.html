@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Netflix Subtitle Downloader</h2>
+    
+    <div class="form-group">
+      <label for="subtitle-select">Select Subtitle:</label>
+      <select id="subtitle-select" disabled>
+        <option value="">Loading...</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <button id="download-btn" disabled>Download</button>
+    </div>
+    
+    <div id="status-message" class="status"></div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

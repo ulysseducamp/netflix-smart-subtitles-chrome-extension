@@ -1,4 +1,6 @@
-// Content script for Netflix Subtitle Downloader
+// Netflix Subtitle Downloader
+// Inspired by and based on Subadub (https://github.com/colingogogo/subadub)
+// Subadub Copyright (c) 2018 Russel Simmons - MIT License
 // This script runs on Netflix pages and injects the page script immediately
 
 console.log('Netflix Subtitle Downloader: Content script loaded');

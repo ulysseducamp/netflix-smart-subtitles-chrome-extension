@@ -1,4 +1,6 @@
-// Page script for Netflix Subtitle Downloader
+// Netflix Subtitle Downloader
+// Inspired by and based on Subadub (https://github.com/colingogogo/subadub)
+// Subadub Copyright (c) 2018 Russel Simmons - MIT License
 // This script is injected into Netflix pages and implements JSON hijacking to extract subtitles
 // Following Subadub's immediate injection approach
 

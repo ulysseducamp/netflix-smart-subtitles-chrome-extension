@@ -1,4 +1,6 @@
-// Popup script for Netflix Subtitle Downloader
+// Netflix Subtitle Downloader
+// Inspired by and based on Subadub (https://github.com/colingogogo/subadub)
+// Subadub Copyright (c) 2018 Russel Simmons - MIT License
 // This script handles the popup interface and communicates with the content script
 
 console.log('Netflix Subtitle Downloader: Popup script loaded');

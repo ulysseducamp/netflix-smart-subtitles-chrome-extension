@@ -97,3 +97,7 @@ Netflix Subtitle Downloader: Available tracks updated: [tracks]
 - Better error handling for API changes
 - Keyboard shortcuts for quick access
 - Settings panel for user preferences
+
+## Acknowledgments
+
+This extension is inspired by and based on [Subadub](https://github.com/colingogogo/subadub) by Russel Simmons, which is licensed under the MIT License. The core subtitle extraction technique using JSON hijacking and WebVTT format injection is derived from Subadub's implementation.

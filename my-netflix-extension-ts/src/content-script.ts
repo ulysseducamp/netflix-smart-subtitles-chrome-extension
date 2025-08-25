@@ -9,7 +9,7 @@ console.log('Netflix Subtitle Downloader: Content script loaded');
 
 // Subtitle data storage
 let availableTracks: SubtitleTrack[] = [];
-let currentMovieId: string | null = null;
+let currentMovieId: number | null = null;
 
 // Function to inject page script into the page context IMMEDIATELY
 function injectPageScript(): void {

@@ -15,7 +15,7 @@ export interface NetflixSubtitle {
 
 export interface NetflixManifest {
   result: {
-    movieId: string;
+    movieId: number;
     timedtexttracks: NetflixSubtitle[];
   };
 }
@@ -24,7 +24,7 @@ export interface NetflixMoviesResponse {
   result: {
     movies: {
       [movieId: string]: {
-        movieId: string;
+        movieId: number;
         timedtexttracks: NetflixSubtitle[];
       };
     };
@@ -34,7 +34,7 @@ export interface NetflixMoviesResponse {
 export interface NetflixAlternativeResponse {
   result: {
     result: {
-      movieId: string;
+      movieId: number;
       timedtexttracks: NetflixSubtitle[];
     };
   };
@@ -59,7 +59,7 @@ export interface TracksAvailableMessage extends ExtensionMessage {
   type: 'NETFLIX_SUBTITLES';
   action: 'TRACKS_AVAILABLE';
   data: {
-    movieId: string;
+    movieId: number;
     tracks: SubtitleTrack[];
   };
 }
@@ -93,7 +93,7 @@ export interface ChromeResponse {
   title?: string;
   url?: string;
   tracks?: SubtitleTrack[];
-  movieId?: string;
+  movieId?: number;
   message?: string;
   error?: string;
 }

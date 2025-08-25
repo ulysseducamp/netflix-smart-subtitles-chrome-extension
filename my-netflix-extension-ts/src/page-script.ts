@@ -31,9 +31,9 @@ import { NetflixSubtitle, NetflixManifest, NetflixMoviesResponse, NetflixAlterna
   ];
 
   // Caching system for subtitle data
-  const trackListCache = new Map<string, SubtitleTrack[]>(); // from movie ID to list of available tracks
+  const trackListCache = new Map<number, SubtitleTrack[]>(); // from movie ID to list of available tracks
   const webvttCache = new Map<string, Blob>(); // from 'movieID/trackID' to blob
-  let currentMovieId: string | null = null;
+  let currentMovieId: number | null = null;
   let selectedTrackId: string | null = null;
 
   // Function to find subtitle-related properties in Netflix API objects
@@ -57,7 +57,7 @@ import { NetflixSubtitle, NetflixManifest, NetflixMoviesResponse, NetflixAlterna
 
   // Function to extract movie text tracks from Netflix API response
   function extractMovieTextTracks(movieObj: any): void {
-    const movieId = movieObj.movieId;
+    const movieId = movieObj.movieId as number;
     console.log('Netflix Subtitle Downloader: Extracting tracks for movie ID:', movieId);
 
     const usableTracks: SubtitleTrack[] = [];
@@ -378,12 +378,12 @@ import { NetflixSubtitle, NetflixManifest, NetflixMoviesResponse, NetflixAlterna
 
   // Poll for movie ID changes (ONLY for video changes, not for injection timing)
   function updateCurrentMovieId(): void {
-    let videoId: string | null = null;
+    let videoId: number | null = null;
     const videoIdElem = document.querySelector('*[data-videoid]');
     if (videoIdElem) {
       const dsetIdStr = videoIdElem.getAttribute('data-videoid');
       if (dsetIdStr) {
-        videoId = dsetIdStr;
+        videoId = +dsetIdStr; // Convert to number like in original JS version
       }
     }
 

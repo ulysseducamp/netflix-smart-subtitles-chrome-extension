@@ -10,7 +10,6 @@ import { NetflixSubtitle, NetflixManifest, NetflixMoviesResponse, NetflixAlterna
   console.log('Netflix Subtitle Downloader: Page script loaded - starting JSON hijacking immediately');
 
   // Constants from Subadub analysis
-  const POLL_INTERVAL_MS = 500;
   const WEBVTT_FMT = 'webvtt-lssdh-ios8';
   
   // Injection-related constants (from Subadub)
@@ -40,9 +39,9 @@ import { NetflixSubtitle, NetflixManifest, NetflixMoviesResponse, NetflixAlterna
   let currentMovieId: number | null = null;
   let selectedTrackId: string | null = null;
 
-  // Injection state variables (from Subadub)
-  let displayedTrackBlob: Blob | null = null;
+  // Injection state variables (simplified)
   let showSubsState = true;
+  let currentBlobUrl: string | null = null; // Track current blob URL for cleanup
 
   // SRT file content for injection (real subtitles from E06.srt)
   const SRT_CONTENT = `1
@@ -280,10 +279,33 @@ Fim de história.`;
     return null;
   }
 
+  // Function to update current movie ID from DOM (event-driven)
+  function updateCurrentMovieId(): void {
+    let videoId: number | null = null;
+    const videoIdElem = document.querySelector('*[data-videoid]');
+    if (videoIdElem) {
+      const dsetIdStr = videoIdElem.getAttribute('data-videoid');
+      if (dsetIdStr) {
+        videoId = +dsetIdStr; // Convert to number like in original JS version
+      }
+    }
+
+    currentMovieId = videoId;
+    if (!currentMovieId) {
+      selectedTrackId = null;
+    }
+  }
+
   // Function to extract movie text tracks from Netflix API response
   function extractMovieTextTracks(movieObj: any): void {
     const movieId = movieObj.movieId as number;
     console.log('Netflix Subtitle Downloader: Extracting tracks for movie ID:', movieId);
+
+    // Update current movie ID when we detect new content
+    currentMovieId = movieId;
+    if (!currentMovieId) {
+      selectedTrackId = null;
+    }
 
     const usableTracks: SubtitleTrack[] = [];
     
@@ -520,9 +542,16 @@ Fim de história.`;
   function addTrackElem(videoElem: HTMLVideoElement, blob: Blob, srclang: string): void {
     console.log('Netflix Subtitle Downloader: Adding track element for injection');
     
+    // Always clean up existing elements and blob URL first
+    removeTrackElem();
+    
     const trackElem = document.createElement('track');
     trackElem.id = TRACK_ELEM_ID;
-    trackElem.src = URL.createObjectURL(blob);
+    
+    // Create and track new blob URL
+    currentBlobUrl = URL.createObjectURL(blob);
+    trackElem.src = currentBlobUrl;
+    
     trackElem.kind = 'subtitles';
     trackElem.default = true;
     trackElem.srclang = srclang;
@@ -613,7 +642,11 @@ Fim de história.`;
 
   // Function to remove track element and overlay
   function removeTrackElem(): void {
-    console.log('Netflix Subtitle Downloader: Removing track element and overlay');
+    // Clean up tracked blob URL first to prevent memory leaks
+    if (currentBlobUrl) {
+      URL.revokeObjectURL(currentBlobUrl);
+      currentBlobUrl = null;
+    }
     
     const trackElem = document.getElementById(TRACK_ELEM_ID);
     if (trackElem) {
@@ -638,49 +671,28 @@ Fim de história.`;
     }
   }
 
-  // Function to convert SRT to WebVTT format
+  // Function to convert SRT to WebVTT format (simplified)
   function convertSRTToWebVTT(srtContent: string): string {
     const lines = srtContent.split('\n');
     let webvttContent = 'WEBVTT\n\n';
-    let i = 0;
     
-    while (i < lines.length) {
-      // Skip empty lines and subtitle numbers
-      while (i < lines.length && (lines[i].trim() === '' || /^\d+$/.test(lines[i].trim()))) {
-        i++;
-      }
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
       
-      if (i >= lines.length) break;
+      // Skip empty lines and numbers
+      if (!line || /^\d+$/.test(line)) continue;
       
-      // Get timestamp line
-      const timestampLine = lines[i].trim();
-      if (!timestampLine.includes('-->')) {
-        i++;
-        continue;
-      }
-      
-      // Convert SRT timestamp format to WebVTT format
-      const timestampMatch = timestampLine.match(/(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/);
-      if (!timestampMatch) {
-        i++;
-        continue;
-      }
-      
-      const startTime = timestampMatch[1].replace(',', '.');
-      const endTime = timestampMatch[2].replace(',', '.');
-      webvttContent += `${startTime} --> ${endTime}\n`;
-      
-      i++;
-      
-      // Get subtitle text
-      const subtitleLines: string[] = [];
-      while (i < lines.length && lines[i].trim() !== '') {
-        subtitleLines.push(lines[i].trim());
-        i++;
-      }
-      
-      if (subtitleLines.length > 0) {
-        webvttContent += subtitleLines.join('\n') + '\n\n';
+      // Check if line contains timestamp
+      if (line.includes('-->')) {
+        // Convert timestamps: , -> .
+        const timestamps = line.replace(/,/g, '.');
+        webvttContent += timestamps + '\n';
+        
+        // Add subtitle text until next empty line
+        while (++i < lines.length && lines[i].trim()) {
+          webvttContent += lines[i].trim() + '\n';
+        }
+        webvttContent += '\n';
       }
     }
     
@@ -703,25 +715,20 @@ Fim de história.`;
       const newBlob = createTestWebVTTBlob();
       
       // More robust comparison: check if we already have a blob with the same content
-      const shouldUpdate = !displayedTrackBlob || 
-                          displayedTrackBlob.size !== newBlob.size ||
-                          displayedTrackBlob.type !== newBlob.type;
+      const shouldUpdate = true; // Simplified logic
       
       if (shouldUpdate) {
         console.log('Netflix Subtitle Downloader: Updating subtitle injection - new blob detected');
         
-        removeTrackElem();
         addTrackElem(videoElem, newBlob, 'en'); // Use English as default for test
-        displayedTrackBlob = newBlob;
       } else {
         console.log('Netflix Subtitle Downloader: No update needed - same blob content');
       }
     } else {
       // Clean up when no video or movie ID
-      if (displayedTrackBlob) {
+      if (true) { // Simplified logic
         console.log('Netflix Subtitle Downloader: Cleaning up subtitle injection');
         removeTrackElem();
-        displayedTrackBlob = null;
       }
     }
   }
@@ -817,51 +824,46 @@ Fim de história.`;
     return value;
   };
 
-  // Poll for movie ID changes and subtitle injection reconciliation
-  function updateCurrentMovieId(): void {
-    let videoId: number | null = null;
-    const videoIdElem = document.querySelector('*[data-videoid]');
-    if (videoIdElem) {
-      const dsetIdStr = videoIdElem.getAttribute('data-videoid');
-      if (dsetIdStr) {
-        videoId = +dsetIdStr; // Convert to number like in original JS version
+  // Set up message listener
+  window.addEventListener('message', handleContentScriptMessage);
+  
+  // Set up keyboard shortcuts for subtitle control (like Subadub)
+  document.body.addEventListener('keydown', function(e) {
+    if ((e.keyCode === 83) && !e.altKey && !e.ctrlKey && !e.metaKey) { // unmodified S key
+      console.log('Netflix Subtitle Downloader: Toggle subtitle display');
+      showSubsState = !showSubsState;
+      updateSubtitleDisplay();
+    }
+  }, false);
+
+  // Event-driven video detection using MutationObserver
+  const videoObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = node as Element;
+            // Check if the added element is a video or contains a video
+            if (element.tagName === 'VIDEO' || element.querySelector('video')) {
+              console.log('Netflix Subtitle Downloader: Video element detected via MutationObserver');
+              updateCurrentMovieId();
+              reconcileSubtitleInjection();
+            }
+          }
+        }
       }
     }
+  });
 
-    currentMovieId = videoId;
-    if (!currentMovieId) {
-      selectedTrackId = null;
-    }
+  // Start observing DOM changes for video elements
+  videoObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
 
-    // CONTINUOUS SUBTITLE INJECTION RECONCILIATION - Check for video elements and maintain injection
-    reconcileSubtitleInjection();
-  }
-
-  // Initialize
-  function initialize(): void {
-    console.log('Netflix Subtitle Downloader: Initializing page script');
-    
-    // Set up message listener
-    window.addEventListener('message', handleContentScriptMessage);
-    
-    // Start polling for movie ID changes (like Subadub)
-    setInterval(updateCurrentMovieId, POLL_INTERVAL_MS);
-    
-    // Initial movie ID check
-    updateCurrentMovieId();
-    
-    // Set up keyboard shortcuts for subtitle control (like Subadub)
-    document.body.addEventListener('keydown', function(e) {
-      if ((e.keyCode === 83) && !e.altKey && !e.ctrlKey && !e.metaKey) { // unmodified S key
-        console.log('Netflix Subtitle Downloader: Toggle subtitle display');
-        showSubsState = !showSubsState;
-        updateSubtitleDisplay();
-      }
-    }, false);
-    
-    console.log('Netflix Subtitle Downloader: Page script initialized - JSON hijacking and subtitle injection active');
-  }
-
-  // Start initialization immediately
-  initialize();
+  // Initial setup - check for existing video elements
+  updateCurrentMovieId();
+  reconcileSubtitleInjection();
+  
+  console.log('Netflix Subtitle Downloader: Page script initialized - JSON hijacking and subtitle injection active (event-driven)');
 })();
